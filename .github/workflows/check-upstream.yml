@@ -1,0 +1,94 @@
+name: Check Upstream Updates
+
+on:
+  schedule:
+    # Every day at 08:00 UTC
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+env:
+  UPSTREAM_REPO: https://github.com/dwzhu-pku/PaperBanana.git
+  UPSTREAM_BRANCH: main
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read current tracked commit
+        id: current
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          UPSTREAM_SHORT="${VERSION%%-*}"
+          ITERATION="${VERSION##*-}"
+
+          FULL=$(git ls-remote "${{ env.UPSTREAM_REPO }}" | \
+                 grep -E "^${UPSTREAM_SHORT}" | head -1 | awk '{print $1}')
+
+          echo "short=${UPSTREAM_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "full=${FULL}" >> "$GITHUB_OUTPUT"
+          echo "iteration=${ITERATION}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Currently tracking: ${UPSTREAM_SHORT} (${FULL:-unresolved})"
+
+      - name: Fetch latest upstream commit
+        id: latest
+        run: |
+          LATEST=$(git ls-remote "${{ env.UPSTREAM_REPO }}" \
+                   "refs/heads/${{ env.UPSTREAM_BRANCH }}" | awk '{print $1}')
+
+          if [ -z "${LATEST}" ]; then
+            echo "::error::Could not fetch latest commit from upstream"
+            exit 1
+          fi
+
+          LATEST_SHORT="${LATEST:0:7}"
+          echo "commit=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "short=${LATEST_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream commit: ${LATEST_SHORT} (${LATEST})"
+
+      - name: Compare commits
+        id: compare
+        run: |
+          CURRENT="${{ steps.current.outputs.full }}"
+          LATEST="${{ steps.latest.outputs.commit }}"
+
+          if [ "${CURRENT}" = "${LATEST}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Upstream has not changed — nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Upstream changed: ${CURRENT:-unknown} → ${LATEST}"
+          fi
+
+      - name: Update VERSION and push
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          NEW_VERSION="${{ steps.latest.outputs.short }}-01"
+          echo "${NEW_VERSION}" > VERSION
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: track upstream PaperBanana ${{ steps.latest.outputs.short }}
+
+          Upstream commit: ${{ steps.latest.outputs.commit }}
+          Previous: ${{ steps.current.outputs.version }}"
+          git push
+
+      - name: Trigger image rebuild
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run build-publish.yml \
+            --ref main \
+            -f upstream_commit="${{ steps.latest.outputs.commit }}"
+          echo "Triggered build-publish for upstream ${{ steps.latest.outputs.short }}"
