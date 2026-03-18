@@ -1,0 +1,23 @@
+# Environment secrets
+.env
+
+# Runtime data (bind-mounted volumes)
+data/
+results/
+configs/model_config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

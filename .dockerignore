@@ -1,0 +1,16 @@
+.git
+.github
+.gitignore
+.env
+.env.example
+data/
+results/
+configs/model_config.yaml
+*.md
+!scripts/**
+LICENSE
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+.DS_Store

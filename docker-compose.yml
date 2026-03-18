@@ -1,0 +1,26 @@
+services:
+  paperbanana:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UPSTREAM_COMMIT: "69e6bd92ccc4e1c79ada7d49c0b2524a00477490"
+        IMAGE_VERSION: "69e6bd9-01"
+    image: paperbanana:latest
+    container_name: paperbanana
+    env_file:
+      - .env
+    ports:
+      - "${STREAMLIT_PORT:-8080}:${STREAMLIT_PORT:-8080}"
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      # Uncomment to supply a custom model_config.yaml instead of env vars:
+      # - ./configs:/app/configs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${STREAMLIT_PORT:-8080}/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
