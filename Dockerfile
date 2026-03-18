@@ -79,6 +79,8 @@ RUN groupadd --gid 1000 appuser && \
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+COPY --chown=appuser:appuser scripts/config_gateway.py /app/config_gateway.py
+
 USER appuser
 
 ENV GOOGLE_API_KEY="" \

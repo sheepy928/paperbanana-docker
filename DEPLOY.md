@@ -7,6 +7,7 @@ Production Docker setup for [PaperBanana](https://github.com/dwzhu-pku/PaperBana
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
+- [Web-Based Setup Wizard](#web-based-setup-wizard)
 - [Data Externalization](#data-externalization)
 - [Docker Compose](#docker-compose)
 - [Pull Pre-Built Image from GHCR](#pull-pre-built-image-from-ghcr)
@@ -99,6 +100,43 @@ docker run -v ./configs:/app/configs ...
 ```
 
 When a `configs/model_config.yaml` is mounted, the entrypoint will use it as-is and skip generating one from environment variables.
+
+---
+
+## Web-Based Setup Wizard
+
+If the container starts **without any API keys** (no `.env` file, no environment variables, no bind-mounted config), it automatically presents a setup wizard in the browser instead of the main application.
+
+### How It Works
+
+1. The entrypoint detects that all API key values are empty.
+2. A lightweight Streamlit setup page is served on the same port (default `8080`).
+3. The user enters at least one API key and optional model settings, then clicks **Save & Launch**.
+4. The wizard writes `configs/model_config.yaml` inside the container.
+5. The entrypoint detects the change, stops the wizard, and starts the real PaperBanana app.
+
+No upstream code is modified — the wizard is a separate Streamlit script that only manages the config file.
+
+### Zero-Config Launch
+
+This means you can start the container with no configuration at all:
+
+```bash
+docker run -d --name paperbanana -p 8080:8080 \
+    -v "$(pwd)/results:/app/results" \
+    paperbanana:latest
+```
+
+Then open `http://localhost:8080` and fill in your keys through the web UI.
+
+### Notes
+
+- If you **do** provide API keys via `.env` or environment variables, the wizard is skipped entirely and the app starts immediately.
+- The wizard writes to the container's filesystem. To persist keys across container restarts, bind-mount the configs directory:
+
+```bash
+-v "$(pwd)/configs:/app/configs"
+```
 
 ---
 

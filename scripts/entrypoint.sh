@@ -30,6 +30,44 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# If no API keys are configured, launch the setup wizard so the user can
+# provide keys through the web UI.  The wizard writes model_config.yaml;
+# once valid keys are detected the entrypoint kills the wizard and
+# continues to launch the real application.
+# ---------------------------------------------------------------------------
+has_valid_keys() {
+    python3 << 'PYEOF'
+import yaml, sys
+try:
+    with open("/app/configs/model_config.yaml") as f:
+        cfg = yaml.safe_load(f) or {}
+    keys = cfg.get("api_keys", {})
+    sys.exit(0 if any(v for v in keys.values() if v) else 1)
+except Exception:
+    sys.exit(1)
+PYEOF
+}
+
+if ! has_valid_keys; then
+    echo "[entrypoint] No API keys configured — launching setup wizard on port ${PORT}..."
+    streamlit run /app/config_gateway.py \
+        --server.port "${PORT}" \
+        --server.address "0.0.0.0" \
+        --server.headless true \
+        --browser.gatherUsageStats false &
+    SETUP_PID=$!
+
+    while ! has_valid_keys; do
+        sleep 2
+    done
+
+    echo "[entrypoint] API keys configured — stopping setup wizard..."
+    kill "${SETUP_PID}" 2>/dev/null || true
+    wait "${SETUP_PID}" 2>/dev/null || true
+    sleep 1
+fi
+
+# ---------------------------------------------------------------------------
 # Optional: start a cloudflared quick tunnel for public HTTPS access
 # ---------------------------------------------------------------------------
 if [ "${ENABLE_CLOUDFLARED:-false}" = "true" ]; then
