@@ -153,23 +153,21 @@ The container uses three directories that should be mounted as volumes to persis
 | `./results` | `/app/results` | Generated diagrams and outputs |
 | `./configs` | `/app/configs` | Custom `model_config.yaml` (optional) |
 
-### Downloading the Dataset
+### Bundled Dataset
 
-The PaperBananaBench dataset is optional — without it, the Retriever Agent's few-shot learning is skipped and the pipeline still works.
+The PaperBananaBench dataset is downloaded from Hugging Face during the Docker build and bundled into the image at `/opt/PaperBananaBench`. On first start, if `/app/data/PaperBananaBench` is missing (e.g. empty volume mount), the entrypoint automatically copies the bundled dataset into place. No manual download is required.
 
-To download it:
+If you need to update the dataset independently of the image, you can download a newer version on the host and it will take precedence over the bundled copy:
 
 ```bash
-# Install huggingface-hub CLI if you don't have it
 pip install huggingface-hub
 
-# Download the dataset into ./data/PaperBananaBench/
 huggingface-cli download dwzhu/PaperBananaBench \
     --repo-type dataset \
     --local-dir ./data/PaperBananaBench
 ```
 
-Expected structure after download:
+Expected structure:
 
 ```
 data/

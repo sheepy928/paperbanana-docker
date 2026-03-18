@@ -4,6 +4,22 @@ set -euo pipefail
 PORT="${STREAMLIT_PORT:-8080}"
 
 # ---------------------------------------------------------------------------
+# Seed the PaperBananaBench dataset from the bundled copy if the data
+# directory is empty (e.g. fresh volume mount).  User-provided data in
+# ./data/PaperBananaBench takes precedence and is left untouched.
+# ---------------------------------------------------------------------------
+BUNDLED_DIR="/opt/PaperBananaBench"
+DATASET_DIR="/app/data/PaperBananaBench"
+
+if [ -d "${BUNDLED_DIR}" ] && [ ! -d "${DATASET_DIR}/diagram" ]; then
+    echo "[entrypoint] Seeding PaperBananaBench dataset from bundled copy..."
+    cp -a "${BUNDLED_DIR}" "${DATASET_DIR}"
+    echo "[entrypoint] Dataset ready at ${DATASET_DIR}"
+else
+    echo "[entrypoint] PaperBananaBench dataset already present — skipping seed"
+fi
+
+# ---------------------------------------------------------------------------
 # Generate configs/model_config.yaml from environment variables if it does
 # not already exist (a bind-mounted config takes precedence).
 # ---------------------------------------------------------------------------

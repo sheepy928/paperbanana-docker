@@ -23,6 +23,10 @@ RUN git clone "${UPSTREAM_REPO}" app && \
 RUN sed -i 's/^ gemini_client = genai\.Client(api_key=api_key)/ _gemini_base = os.getenv("GEMINI_BASE_URL", "")\n gemini_client = genai.Client(api_key=api_key, http_options={"base_url": _gemini_base}) if _gemini_base else genai.Client(api_key=api_key)/' \
     app/utils/generation_utils.py
 
+# Patch: guard ref.json access in planner_agent to handle missing dataset
+COPY scripts/patch_planner.py /tmp/patch_planner.py
+RUN python3 /tmp/patch_planner.py && rm /tmp/patch_planner.py
+
 RUN pip install --no-cache-dir uv
 
 RUN cd app && \
@@ -30,6 +34,12 @@ RUN cd app && \
     . /opt/venv/bin/activate && \
     uv pip install -r requirements.txt && \
     uv pip install curl_cffi
+
+# Download PaperBananaBench dataset for bundling into the image
+RUN pip install --no-cache-dir huggingface-hub && \
+    huggingface-cli download dwzhu/PaperBananaBench \
+        --repo-type dataset \
+        --local-dir /opt/PaperBananaBench
 
 # =============================================================================
 # Stage 2: Runtime — lean image with app, venv, cloudflared, and entrypoint
@@ -67,6 +77,7 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /build/app /app
+COPY --from=builder /opt/PaperBananaBench /opt/PaperBananaBench
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     VIRTUAL_ENV="/opt/venv" \
@@ -74,7 +85,8 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1
 
 RUN mkdir -p /app/data /app/results /app/configs && \
-    chmod -R 777 /app/data /app/results /app/configs
+    chmod -R 777 /app/data /app/results /app/configs && \
+    chmod -R a+rX /opt/PaperBananaBench
 
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser && \
