@@ -19,6 +19,10 @@ RUN git clone "${UPSTREAM_REPO}" app && \
     cd app && \
     git checkout "${UPSTREAM_COMMIT}"
 
+# Patch: allow GEMINI_BASE_URL env var to override the Gemini API endpoint
+RUN sed -i 's/^ gemini_client = genai\.Client(api_key=api_key)/ _gemini_base = os.getenv("GEMINI_BASE_URL", "")\n gemini_client = genai.Client(api_key=api_key, http_options={"base_url": _gemini_base}) if _gemini_base else genai.Client(api_key=api_key)/' \
+    app/utils/generation_utils.py
+
 RUN pip install --no-cache-dir uv
 
 RUN cd app && \
@@ -84,6 +88,7 @@ COPY --chown=appuser:appuser scripts/config_gateway.py /app/config_gateway.py
 USER appuser
 
 ENV GOOGLE_API_KEY="" \
+    GEMINI_BASE_URL="" \
     OPENAI_API_KEY="" \
     ANTHROPIC_API_KEY="" \
     OPENROUTER_API_KEY="" \

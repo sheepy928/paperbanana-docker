@@ -73,6 +73,7 @@ cp .env.example .env
 | `OPENAI_API_KEY` | _(empty)_ | OpenAI API key |
 | `ANTHROPIC_API_KEY` | _(empty)_ | Anthropic API key |
 | `OPENROUTER_API_KEY` | _(empty)_ | OpenRouter unified API key |
+| `GEMINI_BASE_URL` | _(empty)_ | Custom base URL for Gemini API (for third-party proxies) |
 | `MAIN_MODEL_NAME` | `gemini-3.1-pro-preview` | Main VLM for planning/critique |
 | `IMAGE_GEN_MODEL_NAME` | `gemini-3.1-flash-image-preview` | Image generation model |
 | `ENABLE_CLOUDFLARED` | `false` | Enable public HTTPS tunnel |
