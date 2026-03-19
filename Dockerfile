@@ -36,11 +36,17 @@ RUN cd app && \
     uv pip install curl_cffi
 
 # Download PaperBananaBench dataset for bundling into the image
-RUN pip install --no-cache-dir huggingface-hub[cli] && \
-    python3 -m huggingface_hub.commands.huggingface_cli download \
-        dwzhu/PaperBananaBench \
-        --repo-type dataset \
-        --local-dir /opt/PaperBananaBench
+RUN pip install --no-cache-dir huggingface-hub && \
+    python3 - <<'PYEOF'
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="dwzhu/PaperBananaBench",
+    repo_type="dataset",
+    local_dir="/opt/PaperBananaBench",
+    local_dir_use_symlinks=False,
+)
+PYEOF
 
 # =============================================================================
 # Stage 2: Runtime — lean image with app, venv, cloudflared, and entrypoint
