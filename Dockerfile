@@ -20,8 +20,8 @@ RUN git clone "${UPSTREAM_REPO}" app && \
     git checkout "${UPSTREAM_COMMIT}"
 
 # Patch: allow GEMINI_BASE_URL env var to override the Gemini API endpoint
-RUN sed -i 's/^ gemini_client = genai\.Client(api_key=api_key)/ _gemini_base = os.getenv("GEMINI_BASE_URL", "")\n gemini_client = genai.Client(api_key=api_key, http_options={"base_url": _gemini_base}) if _gemini_base else genai.Client(api_key=api_key)/' \
-    app/utils/generation_utils.py
+COPY scripts/patch_generation_utils.py /tmp/patch_generation_utils.py
+RUN python3 /tmp/patch_generation_utils.py && rm /tmp/patch_generation_utils.py
 
 # Patch: guard ref.json access in planner_agent to handle missing dataset
 COPY scripts/patch_planner.py /tmp/patch_planner.py
