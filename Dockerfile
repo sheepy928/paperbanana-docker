@@ -36,8 +36,9 @@ RUN cd app && \
     uv pip install curl_cffi
 
 # Download PaperBananaBench dataset for bundling into the image
-RUN pip install --no-cache-dir huggingface-hub && \
-    huggingface-cli download dwzhu/PaperBananaBench \
+RUN pip install --no-cache-dir huggingface-hub[cli] && \
+    python3 -m huggingface_hub.commands.huggingface_cli download \
+        dwzhu/PaperBananaBench \
         --repo-type dataset \
         --local-dir /opt/PaperBananaBench
 
