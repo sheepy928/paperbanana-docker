@@ -10,14 +10,65 @@ PORT="${STREAMLIT_PORT:-8080}"
 # ---------------------------------------------------------------------------
 BUNDLED_DIR="/opt/PaperBananaBench"
 DATASET_DIR="/app/data/PaperBananaBench"
+DATA_ROOT="/app/data"
 
-if [ -d "${BUNDLED_DIR}" ] && [ ! -d "${DATASET_DIR}/diagram" ]; then
+ensure_dataset_extracted() {
+    python3 <<'PYEOF'
+from pathlib import Path
+import shutil
+import zipfile
+
+dataset_dir = Path("/app/data/PaperBananaBench")
+if (dataset_dir / "diagram" / "ref.json").exists() or (dataset_dir / "plot" / "ref.json").exists():
+    print(f"[entrypoint] Dataset extracted layout already present at {dataset_dir}")
+    raise SystemExit(0)
+
+zip_path = dataset_dir / "PaperBananaBench.zip"
+if not zip_path.exists():
+    print(f"[entrypoint] No dataset archive found at {zip_path}; leaving dataset directory unchanged")
+    raise SystemExit(0)
+
+extract_dir = dataset_dir / "_extract_tmp"
+if extract_dir.exists():
+    shutil.rmtree(extract_dir)
+extract_dir.mkdir(parents=True, exist_ok=True)
+
+with zipfile.ZipFile(zip_path) as zf:
+    zf.extractall(extract_dir)
+
+candidates = [extract_dir, extract_dir / "PaperBananaBench"]
+extracted_root = next(
+    (p for p in candidates if (p / "diagram").exists() or (p / "plot").exists()),
+    None,
+)
+if extracted_root is None:
+    raise RuntimeError(f"Unexpected dataset layout extracted from {zip_path}")
+
+for child in extracted_root.iterdir():
+    target = dataset_dir / child.name
+    if target.exists():
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+    shutil.move(str(child), str(target))
+
+shutil.rmtree(extract_dir)
+print(f"[entrypoint] Extracted dataset archive into {dataset_dir}")
+PYEOF
+}
+
+mkdir -p "${DATA_ROOT}"
+
+if [ -d "${BUNDLED_DIR}" ] && [ ! -e "${DATASET_DIR}" ]; then
     echo "[entrypoint] Seeding PaperBananaBench dataset from bundled copy..."
     cp -a "${BUNDLED_DIR}" "${DATASET_DIR}"
     echo "[entrypoint] Dataset ready at ${DATASET_DIR}"
 else
     echo "[entrypoint] PaperBananaBench dataset already present — skipping seed"
 fi
+
+ensure_dataset_extracted
 
 # ---------------------------------------------------------------------------
 # Generate configs/model_config.yaml from environment variables if it does

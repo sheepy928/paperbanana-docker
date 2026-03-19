@@ -39,13 +39,41 @@ RUN cd app && \
 RUN pip install --no-cache-dir huggingface-hub && \
     python3 - <<'PYEOF'
 from huggingface_hub import snapshot_download
+from pathlib import Path
+import shutil
+import zipfile
 
+local_dir = Path("/opt/PaperBananaBench")
 snapshot_download(
     repo_id="dwzhu/PaperBananaBench",
     repo_type="dataset",
-    local_dir="/opt/PaperBananaBench",
+    local_dir=str(local_dir),
     local_dir_use_symlinks=False,
 )
+
+zip_path = local_dir / "PaperBananaBench.zip"
+if zip_path.exists():
+    extract_dir = local_dir / "_extract_tmp"
+    if extract_dir.exists():
+        shutil.rmtree(extract_dir)
+    extract_dir.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(zip_path) as zf:
+        zf.extractall(extract_dir)
+
+    candidates = [extract_dir, extract_dir / "PaperBananaBench"]
+    extracted_root = next(
+        (p for p in candidates if (p / "diagram").exists() or (p / "plot").exists()),
+        None,
+    )
+    if extracted_root is None:
+        raise RuntimeError(f"Unexpected dataset layout extracted from {zip_path}")
+
+    for child in extracted_root.iterdir():
+        shutil.move(str(child), str(local_dir / child.name))
+
+    shutil.rmtree(extract_dir)
+    zip_path.unlink()
 PYEOF
 
 # =============================================================================
