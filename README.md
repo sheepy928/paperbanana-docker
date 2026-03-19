@@ -16,6 +16,15 @@ PaperBanana is a multi-agent system that uses vision-language models (VLMs) to a
 - Automated CI/CD: image builds on push and daily upstream change detection
 - Optional Cloudflare quick tunnel for public HTTPS access
 
+## Upstream Modifications
+
+This image applies two patches to the upstream PaperBanana source at build time for compatibility and robustness:
+
+1. **`utils/generation_utils.py`** -- Adds support for a `GEMINI_BASE_URL` environment variable so users can point the Gemini client at a third-party proxy endpoint.
+2. **`agents/planner_agent.py`** -- Guards the `ref.json` file access so the Planner Agent no longer crashes with a `FileNotFoundError` when the PaperBananaBench dataset is absent or the Retriever Agent falls back to `retrieval_setting='none'`. The original code unconditionally opens `ref.json` even when there are no retrieved IDs to look up.
+
+Both patches are applied automatically during `docker build` (see `Dockerfile` and `scripts/patch_planner.py`). No upstream source files are vendored in this repo.
+
 ## Quick Start
 
 ```bash
