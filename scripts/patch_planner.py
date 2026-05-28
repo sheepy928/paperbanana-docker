@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Patch planner_agent.py to guard ref.json access when dataset is missing."""
+"""Patch planner_agent.py to guard ref.json access when the dataset is missing.
+
+This build tracks upstream HEAD, so this script is written to tolerate upstream
+drift: it is idempotent (no-ops when the guard already exists) and never fails
+the build just because the patch target moved — it warns and continues instead.
+"""
 import re
 import sys
 
@@ -7,7 +12,13 @@ path = "app/agents/planner_agent.py"
 with open(path) as f:
     src = f.read()
 
-# Match the block that unconditionally opens ref.json.
+# (a) Upstream already guards the empty-references case (it now wraps the
+#     ref.json open in `if retrieved_ids:`), so our patch is redundant. No-op.
+if re.search(r"\bif\s+retrieved_ids\b", src):
+    print("planner_agent.py already guards ref.json access upstream — nothing to patch")
+    sys.exit(0)
+
+# Otherwise, look for the old unconditional layout that opened ref.json directly.
 # Captures indentation so the replacement preserves the upstream code style.
 pattern = (
     r'(?P<indent>[ \t]+)retrieved_ids = data\.get\("top10_references", \[\]\)\n'
@@ -20,8 +31,15 @@ pattern = (
 
 m = re.search(pattern, src)
 if not m:
-    print("ERROR: patch target not found in planner_agent.py — upstream may have changed", file=sys.stderr)
-    sys.exit(1)
+    # (b) Neither the old pattern nor an upstream guard was found — upstream has
+    #     drifted into an unrecognized layout. Don't break the auto-tracking
+    #     build; warn loudly so it shows up in the Action log.
+    print(
+        "WARNING: ref.json patch target not found and no upstream guard detected — "
+        "skipping planner_agent.py patch (upstream may have changed)",
+        file=sys.stderr,
+    )
+    sys.exit(0)
 
 ind = m.group("indent")
 ex = m.group("extra")
